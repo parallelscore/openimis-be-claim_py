@@ -385,7 +385,7 @@ class ClaimAdminService:
     def __init__(self, user):
         self.user = user
 
-    @register_service_signal('claimadmin_service.create_or_update')
+    @register_service_signal('claimadmin.create_or_update')
     def create_or_update(self, data, is_create=False):
         from .models import ClaimAdmin
         data['audit_user_id'] = self.user.id_for_audit
