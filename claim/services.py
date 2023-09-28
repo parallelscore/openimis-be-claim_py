@@ -48,7 +48,8 @@ class ClaimItemSubmit(ClaimElementSubmit):
                          quantity=quantity)
 
     def to_claim_provision(self):
-        item = Item.objects.filter(validity_to__isnull=True, code=self.code).get()
+        item = Item.objects.filter(
+            validity_to__isnull=True, code=self.code).get()
         return ClaimItem(qty_provided=self.quantity, price_asked=self.price, item=item)
 
 
@@ -61,7 +62,8 @@ class ClaimServiceSubmit(ClaimElementSubmit):
                          quantity=quantity)
 
     def to_claim_provision(self):
-        service = Service.objects.filter(validity_to__isnull=True, code=self.code).get()
+        service = Service.objects.filter(
+            validity_to__isnull=True, code=self.code).get()
         return ClaimService(qty_provided=self.quantity, price_asked=self.price, service=service)
 
 
@@ -199,7 +201,8 @@ class ClaimSubmitService(object):
     def enter_and_submit(self, claim: dict, rule_engine_validation: bool = True) -> Claim:
         create_claim_service = ClaimCreateService(self.user)
         entered_claim = create_claim_service.enter_claim(claim)
-        submitted_claim = self.submit_claim(entered_claim, rule_engine_validation)
+        submitted_claim = self.submit_claim(
+            entered_claim, rule_engine_validation)
         return submitted_claim
 
     @register_service_signal('claim.submit_claim')
@@ -232,7 +235,8 @@ class ClaimSubmitService(object):
             .filter(location_id__in=[l.location_id for l in dist])\
             .exists()
         if not hf and settings.ROW_SECURITY:
-            raise ClaimSubmitError("Invalid health facility code or health facility not allowed for user")
+            raise ClaimSubmitError(
+                "Invalid health facility code or health facility not allowed for user")
 
     def _validate_claim(self, claim):
         errors = validate_claim(claim, True)
@@ -326,7 +330,8 @@ class ClaimCreateService:
             .filter(location_id__in=[l.location_id for l in dist])\
             .exists()
         if not hf and settings.ROW_SECURITY:
-            raise ValidationError("Invalid health facility code or health facility not allowed for user")
+            raise ValidationError(
+                "Invalid health facility code or health facility not allowed for user")
 
     @register_service_signal('claim.enter_claim')
     def enter_claim(self, claim: dict):
@@ -352,7 +357,8 @@ class ClaimCreateService:
             raise ValidationError("Provided claim without code.")
 
         if Claim.objects.filter(code=claim['code'], validity_to__isnull=True).exists():
-            raise ValidationError(F"Claim with code '{claim['code']}' already exists.")
+            raise ValidationError(
+                F"Claim with code '{claim['code']}' already exists.")
 
     def _ensure_entered_claim_fields(self, claim_submit_data):
         claim_submit_data['audit_user_id'] = self.user.id_for_audit
@@ -373,6 +379,28 @@ class ClaimCreateService:
         claimed += process_items_relations(self.user, claim, items)
         claimed += process_services_relations(self.user, claim, services)
         claim.claimed = claimed
+
+
+class ClaimAdminService:
+    def __init__(self, user):
+        self.user = user
+
+    @register_service_signal('claimadmin_service.create_or_update')
+    def create_or_update(self, data, is_create=False):
+        from .models import ClaimAdmin
+        data['audit_user_id'] = self.user.id_for_audit
+
+        if is_create:
+            claim_admin = ClaimAdmin.objects.create(**data)
+            return claim_admin
+        # Handle Update of medication item
+        del data['_state']
+
+        updatedClaim = ClaimAdmin(**data)
+
+        updatedClaim.save()
+
+        return updatedClaim
 
 
 def check_unique_claim_code(code):
